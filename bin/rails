@@ -5,4 +5,32 @@ rescue LoadError
 end
 APP_PATH = File.expand_path('../../config/application',  __FILE__)
 require_relative '../config/boot'
+
+begin
+	require 'thin'
+	module Thin
+	  module Backends
+	    TcpServer.class_eval do
+	      def initialize_with_SSL(host, port)
+	        if Rails.env.development?
+	          Rails.logger.info "Loading SSL certs from ./ssl ..."
+	          # @ssl = true
+	          @ssl_options = {
+	            :private_key_file => File.expand_path("../../.ssl/server.key", __FILE__),
+	            :cert_chain_file  => File.expand_path("../../.ssl/server.crt", __FILE__)
+	          }
+	        end
+
+	        initialize_without_SSL(host, port)
+	        @ssl = true if Rails.env.development?
+	      end
+
+	      alias_method :initialize_without_SSL, :initialize
+	      alias_method :initialize, :initialize_with_SSL      
+	    end
+	  end
+	end
+rescue LoadError
+end
+
 require 'rails/commands'
